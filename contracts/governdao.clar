@@ -149,3 +149,23 @@
   )
 )
 
+;; Manually close a motion (admin-only)
+(define-public (terminate-motion (motion-id uint))
+  (let (
+    (motion (unwrap! (map-get? governance-motions { motion-id: motion-id }) ERROR_MOTION_NOT_FOUND))
+  )
+    ;; Validate motion ID
+    (asserts! (validate-motion-id motion-id) ERROR_INVALID_MOTION)
+    
+    ;; Validate sender is governance admin
+    (asserts! (is-eq tx-sender GOVERNANCE_ADMIN) ERROR_UNAUTHORIZED)
+    
+    ;; Close the motion
+    (ok (map-set governance-motions
+      { motion-id: motion-id }
+      (merge motion { is-active: false })
+    ))
+  )
+)
+
+
