@@ -168,4 +168,52 @@
   )
 )
 
+;; Update standard voting window duration (admin-only)
+(define-public (set-standard-voting-window (duration uint))
+  (begin
+    ;; Validate sender is governance admin
+    (asserts! (is-eq tx-sender GOVERNANCE_ADMIN) ERROR_UNAUTHORIZED)
+    
+    ;; Validate duration is reasonable
+    (asserts! (validate-voting-window duration) ERROR_INVALID_PARAMETERS)
+    
+    ;; Set new standard window
+    (var-set standard-voting-window duration)
+    (ok true)
+  )
+)
 
+;; Read-only functions
+;; Retrieve motion details with context
+(define-read-only (get-motion-details (motion-id uint))
+  (let ((motion (map-get? governance-motions { motion-id: motion-id })))
+    ;; Validate motion ID before processing
+    (if (validate-motion-id motion-id)
+        (if (is-some motion)
+            (some {
+              motion: motion,
+              is-active: (is-motion-active motion-id),
+              remaining-blocks: (match motion
+                m (- (+ (get creation-timestamp m) (get voting-window m)) block-height)
+                u0)
+            })
+            none
+        )
+        none
+    )
+  )
+)
+
+;; Get total number of motions
+(define-read-only (get-total-motions)
+  (var-get total-motions)
+)
+
+;; Check voter participation on a specific motion
+(define-read-only (check-voter-participation (voter principal) (motion-id uint))
+  ;; Validate motion ID before checking participation
+  (if (validate-motion-id motion-id)
+      (default-to false (get has-participated (map-get? voter-participation { voter: voter, motion-id: motion-id })))
+      false
+  )
+)
