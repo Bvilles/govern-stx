@@ -115,3 +115,37 @@
   )
 )
 
+;; Cast a vote on a motion
+(define-public (cast-vote (motion-id uint))
+  (let (
+    (motion (unwrap! (map-get? governance-motions { motion-id: motion-id }) ERROR_INVALID_MOTION))
+    (already-voted (default-to false (get has-participated (map-get? voter-participation { voter: tx-sender, motion-id: motion-id }))))
+  )
+    ;; Validate motion ID
+    (asserts! (validate-motion-id motion-id) ERROR_INVALID_MOTION)
+    
+    ;; Validate motion is active and within voting period
+    (asserts! (is-motion-active motion-id) ERROR_VOTING_CLOSED)
+    
+    ;; Prevent multiple votes
+    (asserts! (not already-voted) ERROR_DUPLICATE_VOTE)
+    
+    ;; Record vote
+    (map-set voter-participation 
+      { voter: tx-sender, motion-id: motion-id } 
+      { 
+        has-participated: true,
+        participation-timestamp: block-height 
+      }
+    )
+    
+    ;; Update motion vote count
+    (map-set governance-motions
+      { motion-id: motion-id }
+      (merge motion { total-votes: (+ (get total-votes motion) u1) })
+    )
+    
+    (ok true)
+  )
+)
+
